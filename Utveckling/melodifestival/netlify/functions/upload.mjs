@@ -24,6 +24,7 @@ async function sb(path, options = {}) {
 
 export default async (req, context) => {
   try {
+    console.log("Upload called, content-length:", req.headers.get("content-length"));
     if (req.method !== "POST") {
       return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
