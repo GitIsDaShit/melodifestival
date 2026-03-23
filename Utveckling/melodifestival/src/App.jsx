@@ -157,8 +157,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [voting, setVoting] = useState(null);
-  const [blocked, setBlocked] = useState({ upload: false, vote: false });
-  const [myVotedId, setMyVotedId] = useState(null);
+  const [blocked, setBlocked] = useState(() => ({
+    upload: !!localStorage.getItem("mello_uploaded"),
+    vote: !!localStorage.getItem("mello_voted"),
+  }));
+  const [myVotedId, setMyVotedId] = useState(() => localStorage.getItem("mello_voted") || null);
 
   const [name, setName] = useState("");
   const [songName, setSongName] = useState("");
@@ -222,6 +225,7 @@ export default function App() {
           setName(""); setSongName(""); setAudioFile(null);
           if (fileRef.current) fileRef.current.value = "";
           setBlocked(b => ({ ...b, upload: true }));
+          localStorage.setItem("mello_uploaded", "1");
           setToast("Låten laddades upp!");
           await fetchSongs();
         }
@@ -250,6 +254,7 @@ export default function App() {
       } else {
         setMyVotedId(songId);
         setBlocked(b => ({ ...b, vote: true }));
+        localStorage.setItem("mello_voted", songId);
         setToast("Din röst är registrerad!");
         await fetchSongs();
       }
@@ -258,6 +263,10 @@ export default function App() {
     } finally {
       setVoting(null);
     }
+  };
+
+  const handleDelete = async (id) => {
+    setSongs(s => s.filter(x => x.id !== id));
   };
 
   const [adminOpen, setAdminOpen] = useState(false);
@@ -277,8 +286,8 @@ export default function App() {
       if (!res.ok) { setToast(data.error || "Fel"); }
       else {
         setToast(data.message);
-        if (action === "reset-all") setSongs([]);
-        if (action === "reset-ips") setBlocked({ upload: false, vote: false });
+        if (action === "reset-all") { setSongs([]); localStorage.removeItem("mello_uploaded"); localStorage.removeItem("mello_voted"); }
+        if (action === "reset-ips") { setBlocked({ upload: false, vote: false }); localStorage.removeItem("mello_uploaded"); localStorage.removeItem("mello_voted"); setMyVotedId(null); }
         if (action === "delete-song") setSongs(s => s.filter(x => x.id !== songId));
         await fetchSongs();
       }
