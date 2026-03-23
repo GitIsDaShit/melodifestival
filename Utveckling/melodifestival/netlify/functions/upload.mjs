@@ -11,6 +11,14 @@ function getIP(req, context) {
   return ip;
 }
 
+function getStoreWithContext(context) {
+  return getStore({
+    name: "melodifestival",
+    siteID: context.site?.id || process.env.SITE_ID,
+    token: process.env.NETLIFY_BLOBS_CONTEXT || context.token,
+  });
+}
+
 export default async (req, context) => {
   try {
     if (req.method !== "POST") {
@@ -19,7 +27,7 @@ export default async (req, context) => {
 
     const ip = getIP(req, context);
     console.log("Connecting to store...");
-    const store = getStore("melodifestival");
+    const store = getStoreWithContext(context);
 
     console.log("Loading songs...");
     const rawSongs = await store.get("songs");
