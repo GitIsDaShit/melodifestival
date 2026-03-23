@@ -1,7 +1,12 @@
 import { getStore } from "@netlify/blobs";
 
 function getIP(req, context) {
-  return context?.ip || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = context?.ip
+    || req.headers.get("x-nf-client-connection-ip")
+    || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || "unknown";
+  console.log("Vote IP:", ip, "context.ip:", context?.ip);
+  return ip;
 }
 
 export default async (req, context) => {
