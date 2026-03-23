@@ -42,13 +42,9 @@ export default async (req, context) => {
     try { body = await req.json(); }
     catch { return Response.json({ error: "Ogiltig data" }, { status: 400 }); }
 
-    const { uploader, title, audioData } = body;
-    if (!uploader?.trim() || !title?.trim() || !audioData) {
+    const { uploader, title, audioUrl } = body;
+    if (!uploader?.trim() || !title?.trim() || !audioUrl) {
       return Response.json({ error: "Saknad data" }, { status: 400 });
-    }
-
-    if (audioData.length > MAX_SIZE_MB * 1024 * 1024 * 1.37) {
-      return Response.json({ error: `Filen är för stor (max ${MAX_SIZE_MB} MB)` }, { status: 413 });
     }
 
     // Check name uniqueness
@@ -67,7 +63,7 @@ export default async (req, context) => {
         id,
         uploader: uploader.trim(),
         title: title.trim(),
-        audio_data: audioData,
+        audio_url: audioUrl,
         votes: 0,
         created_at: Date.now(),
       }),

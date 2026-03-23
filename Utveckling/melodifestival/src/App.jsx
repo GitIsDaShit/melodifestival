@@ -203,39 +203,71 @@ export default function App() {
     sortBy === "votes" ? b.votes - a.votes : b.createdAt - a.createdAt
   );
 
+  const SUPABASE_URL = "https://uzfsuuoljuwxkototldp.supabase.co";
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_KEY;
+
   const handleUpload = async () => {
     if (!name.trim() || !songName.trim() || !audioFile) {
       setToast("Fyll i alla fält och välj en ljudfil");
       return;
     }
     setUploading(true);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const res = await fetch("/api/upload", {
+    try {
+      // 1. Upload file directly to Supabase Storage
+      const fileExt = audioFile.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+      const storageRes = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/songs/${fileName}`,
+        {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uploader: name.trim(), title: songName.trim(), audioData: e.target.result }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          if (res.status === 403) setBlocked(b => ({ ...b, upload: true }));
-          setToast(data.error || "Uppladdning misslyckades");
-        } else {
-          setName(""); setSongName(""); setAudioFile(null);
-          if (fileRef.current) fileRef.current.value = "";
-          setBlocked(b => ({ ...b, upload: true }));
-          localStorage.setItem("mello_uploaded", "1");
-          setToast("Låten laddades upp!");
-          await fetchSongs();
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            "Content-Type": audioFile.type || "audio/mpeg",
+          },
+          body: audioFile,
         }
-      } catch {
-        setToast("Nätverksfel — försök igen");
-      } finally {
-        setUploading(false);
+      );
+
+      if (!storageRes.ok) {
+        const err = await storageRes.text();
+        console.error("Storage error:", err);
+        setToast("Kunde inte ladda upp filen");
+        return;
       }
-    };
-    reader.readAsDataURL(audioFile);
+
+      const audioUrl = `${SUPABASE_URL}/storage/v1/object/public/songs/${fileName}`;
+
+      // 2. Save metadata via Netlify Function (small payload now)
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uploader: name.trim(),
+          title: songName.trim(),
+          audioUrl,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403) setBlocked(b => ({ ...b, upload: true }));
+        setToast(data.error || "Uppladdning misslyckades");
+      } else {
+        setName(""); setSongName(""); setAudioFile(null);
+        if (fileRef.current) fileRef.current.value = "";
+        setBlocked(b => ({ ...b, upload: true }));
+        localStorage.setItem("mello_uploaded", "1");
+        setToast("Låten laddades upp!");
+        await fetchSongs();
+      }
+    } catch (err) {
+      console.error(err);
+      setToast("Nätverksfel — försök igen");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleVote = async (songId) => {
@@ -462,13 +494,9 @@ export default function App() {
                       <div className="progress-bar-bg">
                         <div className="progress-bar-fill" style={{ width: `${barWidth}%` }} />
                       </div>
-                      {audioCache[song.id]
-                        ? <audio controls src={audioCache[song.id]} preload="none" />
-                        : <button
-                            className="btn-vote"
-                            style={{ marginTop: 10, fontSize: 10, padding: "5px 14px", letterSpacing: "1px" }}
-                            onClick={() => fetchAudio(song.id)}
-                          >▶ Ladda ljud</button>
+                      {song.audio_url
+                        ? <audio controls src={song.audio_url} preload="none" />
+                        : null
                       }
                     </div>
                     <div className="song-right">

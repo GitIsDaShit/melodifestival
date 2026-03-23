@@ -16,7 +16,7 @@ async function supabase(path, options = {}) {
 
 export default async (req, context) => {
   try {
-    const res = await supabase("/songs?select=id,uploader,title,votes,created_at&order=votes.desc");
+    const res = await supabase("/songs?select=id,uploader,title,votes,created_at,audio_url&order=votes.desc");
     const songs = await res.json();
     return Response.json({ songs: Array.isArray(songs) ? songs : [] });
   } catch (err) {
